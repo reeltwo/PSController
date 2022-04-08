@@ -5,7 +5,7 @@
 
 #include "Arduino.h"
 
-class PSController
+class JoystickController
 {
 public:
     struct AnalogStick
@@ -136,25 +136,49 @@ public:
         Sensor sensor;
     };
 
-    enum Type
-    {
-        kPS3,
-        kPS4
-    };
-
     State state;
     Event event;
 
-    PSController(const char* mac = nullptr, Type type = kPS3);
-
-    static bool startListening(const char* mac = nullptr);
-    static bool stopListening();
-
-    static String getDeviceAddress();
+    JoystickController() :
+        fConnected(false),
+        fConnecting(false),
+        fCongested(false)
+    {
+    }
 
     inline bool isConnected() const  { return fConnected;  }
     inline bool isConnecting() const { return fConnecting; }
     inline bool isCongested() const  { return fCongested;  }
+
+    virtual void disconnect() {}
+
+    virtual void notify() {}
+    virtual void onConnect() {}
+    virtual void onDisconnect() {}
+
+protected:
+    bool fConnected;
+    bool fConnecting;
+    bool fCongested;
+};
+
+class PSController : public JoystickController
+{
+public:
+    enum Type
+    {
+        kPS3,
+        kPS3Nav,
+        kPS4
+    };
+
+    PSController(const char* mac = nullptr, Type type = kPS3);
+
+    static bool startListening(const char* mac = nullptr);
+    static bool startListening(String& mac) { return startListening(mac.c_str()); }
+    static bool stopListening();
+
+    static String getDeviceAddress();
 
     void setPlayer(int player);
     void setRumble(float leftIntensity, int leftDuration, float rightIntensity, int rightDuration);
@@ -162,11 +186,7 @@ public:
     {
         setRumble(intensity, duration, intensity, duration);
     }
-    void disconnect();
-
-    virtual void notify() {}
-    virtual void onConnect() {}
-    virtual void onDisconnect() {}
+    virtual void disconnect() override;
 
     class priv;
 private:
@@ -175,9 +195,6 @@ private:
 
     Type fType;
     int fPlayer;
-    bool fConnected;
-    bool fConnecting;
-    bool fCongested;
     uint16_t fHIDC;
     uint16_t fHIDI;
     uint8_t fBDAddr[6];
